@@ -1,0 +1,15 @@
+[Unit]
+Description=FabLab Inventario FastAPI
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/fablab-inventario-api
+EnvironmentFile=/etc/fablab-inventario-api/api.env
+ExecStart=/opt/fablab-inventario-api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
