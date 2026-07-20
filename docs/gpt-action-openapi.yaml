@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: Inventario Fablab IBERO para GPT
+  version: 2.0.0
+  description: Consulta, valida y crea registros nuevos sin actualizar ni eliminar existentes.
+  license:
+    name: Uso interno Fablab IBERO
+    identifier: LicenseRef-Internal-Fablab-IBERO
+servers:
+  - url: https://inventario-api.mecatronica-ibero.mx
+security:
+  - BearerActionKey: []
+paths:
+  /api/gpt/context:
+    get:
+      operationId: getInventoryContext
+      summary: Obtener catálogos vigentes
+      description: Devuelve zonas, subzonas, ubicaciones, semanas y tipos desde Firestore.
+      x-openai-isConsequential: false
+      parameters:
+        - name: includeLocations
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Contexto vigente.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/check-skus:
+    post:
+      operationId: checkSkus
+      summary: Comprobar SKU
+      description: Comprueba candidatos contra el campo sku y los IDs documentales.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [skus]
+              properties:
+                skus:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Resultado por SKU.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/suggest-sku:
+    get:
+      operationId: suggestSku
+      summary: Sugerir SKU
+      description: Sugiere candidatos según zona, subzona e inventario vigente.
+      x-openai-isConsequential: false
+      parameters:
+        - name: zoneId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 99
+        - name: subzoneId
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{1,2}\\.[0-9]{1,2}$"
+      responses:
+        "200":
+          description: Candidatos de SKU.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/items/search:
+    get:
+      operationId: searchInventoryItems
+      summary: Buscar ítems similares
+      description: Busca por texto y filtros para mantener coherencia de clasificación.
+      x-openai-isConsequential: false
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - name: zoneId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: subzoneId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Ítems encontrados.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/validate-draft:
+    post:
+      operationId: validateInventoryDraft
+      summary: Validar borrador
+      description: Valida formato, duplicados y referencias sin escribir en Firestore.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftRequest"
+      responses:
+        "200":
+          description: Validación y borrador normalizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/prepare-create:
+    post:
+      operationId: prepareInventoryCreate
+      summary: Preparar alta
+      description: Revalida y emite una confirmación temporal ligada al borrador normalizado. No escribe.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftRequest"
+      responses:
+        "200":
+          description: Borrador normalizado y token, o errores sin token.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/gpt/create:
+    post:
+      operationId: createInventoryRecords
+      summary: Crear registros nuevos
+      description: Crea atómicamente sólo registros inexistentes tras confirmar. Nunca actualiza ni elimina.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRequest"
+      responses:
+        "200":
+          description: Registros creados y auditId.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Confirmación inválida, borrador cambiado o conflicto existente.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+components:
+  responses:
+    Unauthorized:
+      description: API key Bearer ausente o inválida.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+  securitySchemes:
+    BearerActionKey:
+      type: http
+      scheme: bearer
+  schemas:
+    EntityType:
+      type: string
+      enum: [items, item, locations, location, subzones, subzone, zones, zone]
+    Draft:
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items:
+            type: object
+            additionalProperties: true
+    DraftRequest:
+      type: object
+      additionalProperties: false
+      required: [draft]
+      properties:
+        entityType:
+          oneOf:
+            - $ref: "#/components/schemas/EntityType"
+            - type: "null"
+        draft:
+          $ref: "#/components/schemas/Draft"
+    CreateRequest:
+      allOf:
+        - $ref: "#/components/schemas/DraftRequest"
+        - type: object
+          required: [confirmationToken, confirmationText]
+          properties:
+            confirmationToken:
+              type: string
+              minLength: 20
+            confirmationText:
+              type: string
+              minLength: 1

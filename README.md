@@ -32,6 +32,15 @@ fablabcdmx-inventario-api/
 - `POST /api/items/{item_id}/assets/documentation`: sube documentación del item. Requiere token Firebase y usuario con `role: admin`.
 - `GET /api/files/{file_id}/view`: muestra el archivo si está activo.
 - `GET /api/files/{file_id}/download`: descarga el archivo si está activo.
+- `GET /api/gpt/context`: consulta catálogos del inventario para el GPT.
+- `POST /api/gpt/check-skus`: comprueba SKU por campo e ID documental.
+- `GET /api/gpt/suggest-sku`: propone candidatos según zona y subzona.
+- `GET /api/gpt/items/search`: busca elementos similares.
+- `POST /api/gpt/validate-draft`: valida una propuesta sin escribir.
+- `POST /api/gpt/prepare-create`: prepara una alta y emite una confirmación temporal.
+- `POST /api/gpt/create`: crea registros nuevos de forma atómica. Nunca actualiza ni elimina.
+
+Las rutas `/api/gpt/*` usan una API key Bearer independiente de la autenticación Firebase del frontend. Consulta `docs/gpt-action-create-only.md` antes de habilitarlas.
 
 ## Variables de entorno
 
@@ -44,6 +53,9 @@ UPLOAD_ROOT="/var/lib/fablab-inventario-api/uploads"
 CORS_ORIGINS="https://inventario.mecatronica-ibero.mx,http://localhost:5500,http://127.0.0.1:5500"
 MAX_IMAGE_BYTES=8388608
 MAX_DOCUMENT_BYTES=26214400
+GPT_ACTION_API_KEY="clave-larga-distinta"
+GPT_ACTION_SIGNING_SECRET="segundo-secreto-largo-distinto"
+GPT_ACTION_TOKEN_TTL_SECONDS=600
 ```
 
 ## Instalación recomendada en Droplet
@@ -115,6 +127,9 @@ UPLOAD_ROOT="/var/lib/fablab-inventario-api/uploads"
 CORS_ORIGINS="https://inventario.mecatronica-ibero.mx,http://localhost:5500,http://127.0.0.1:5500"
 MAX_IMAGE_BYTES=8388608
 MAX_DOCUMENT_BYTES=26214400
+GPT_ACTION_API_KEY="clave-larga-distinta"
+GPT_ACTION_SIGNING_SECRET="segundo-secreto-largo-distinto"
+GPT_ACTION_TOKEN_TTL_SECONDS=600
 ```
 
 ### 7. Activar systemd
@@ -169,6 +184,12 @@ O usa:
 
 ```bash
 sudo bash scripts/update_backend.sh
+```
+
+## Pruebas
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 ## Respaldos recomendados

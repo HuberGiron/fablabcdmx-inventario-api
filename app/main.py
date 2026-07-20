@@ -15,6 +15,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import firebase_admin
 from firebase_admin import auth, credentials, firestore
 
+from app.gpt_inventory_api import create_gpt_inventory_router
+
 load_dotenv()
 
 PROJECT_NAME = os.getenv("PROJECT_NAME", "FabLab Inventario API")
@@ -63,6 +65,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+app.include_router(create_gpt_inventory_router(db))
 
 
 def safe_filename(filename: str | None) -> str:
