@@ -204,6 +204,38 @@ class GptInventoryApiTests(unittest.TestCase):
         self.assertEqual(409, response.status_code)
         self.assertNotIn("0802002", self.db.data["items"])
 
+    def test_openapi_declares_draft_as_object_or_array(self):
+        response = self.client.get("/openapi.json")
+        self.assertEqual(200, response.status_code)
+
+        schemas = response.json()["components"]["schemas"]
+
+        for schema_name in ("DraftRequest", "CreateRequest"):
+            draft_schema = schemas[schema_name]["properties"]["draft"]
+            variants = draft_schema.get("anyOf", [draft_schema])
+            declared_types = {
+                variant.get("type")
+                for variant in variants
+                if isinstance(variant, dict)
+            }
+
+            self.assertEqual(
+                {"object", "array"},
+                declared_types,
+                f"{schema_name}.draft debe declarar object y array",
+            )
+
+    def test_draft_rejects_scalar_values(self):
+        response = self.client.post(
+            "/api/gpt/validate-draft",
+            json={
+                "entityType": "items",
+                "draft": "esto no es un borrador válido",
+            },
+            headers=self.headers,
+        )
+
+        self.assertEqual(422, response.status_code)
 
 if __name__ == "__main__":
     unittest.main()

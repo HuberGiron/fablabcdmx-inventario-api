@@ -43,7 +43,7 @@ class SkuCheckRequest(BaseModel):
 
 class DraftRequest(BaseModel):
     entityType: EntityType | None = None
-    draft: Any
+    draft: dict[str, Any] | list[dict[str, Any]]
 
 
 class CreateRequest(DraftRequest):
